@@ -26,6 +26,9 @@ data PongoutGame = Game
   , player1Right :: Bool       -- ^ Kretanje prvog igraca u desno.
   , player2Left :: Bool        -- ^ Kretanje drugog igraca u levo.
   , player2Right :: Bool       -- ^ Kretanje drugog igraca u desno.
+  , pause :: Bool              -- ^ Indikator da li je igra pauzirana
+  , start :: Bool              -- ^ Indikator da li je igra pokrenuta
+  , reset :: Bool              -- ^ Indikator da li je igra resetovana
   }
 
 windowSizeWidth :: Int
@@ -61,6 +64,12 @@ playerHeight = 20
 playerWidth :: Float
 playerWidth = 80
 
+menuHeight :: Float
+menuHeight = 350
+
+menuWidth :: Float
+menuWidth = 650
+
 backgroundImage :: GameObject
 backgroundImage  = createGameObject (0, 0) (900, 900) ("images/background.png", 1920, 1080) 
 
@@ -68,7 +77,16 @@ leftWall :: GameObject
 leftWall = createGameObject (-390, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500) 
 
 rightWall :: GameObject
-rightWall = createGameObject (390, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500) 
+rightWall = createGameObject (390, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500)
+
+beginMenu :: GameObject
+beginMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu1.png", 650 , 350)
+
+pauseMenu :: GameObject
+pauseMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu2.png", 650 , 350)
+
+noMenu :: GameObject
+noMenu = createGameObject (0,0) (0,0) ("images/menu2.png", 650 , 350)
 
 initialState :: PongoutGame
 initialState = Game
@@ -80,6 +98,9 @@ initialState = Game
   , player1Right = False
   , player2Left = False
   , player2Right = False
+  , pause = True
+  , reset = False
+  , start = False
   }
 
 resetGame :: PongoutGame -> PongoutGame
@@ -92,11 +113,19 @@ resetGame game = game
   , player1Right = False
   , player2Left = False
   , player2Right = False
+  , pause = False
+  , start = True
+  , reset = False 
   }
 
 -- | Azuriranje stanja igre
 update :: Float -> PongoutGame -> PongoutGame
-update seconds currentGame = wallBounce $ movePlayer $ moveBall seconds currentGame
+update seconds currentGame = if (reset currentGame) then 
+                                resetGame currentGame
+                              else if (not $ pause currentGame) then 
+                                -- vratiti brickBounce kad se uradi
+                                (wallBounce $ movePlayer $ moveBall seconds currentGame)
+                              else currentGame
 
 
 -- | Funkcija iscrtavanja
@@ -106,7 +135,8 @@ render game =
   pictures [backgroundPicture,
             balls,
             walls,
-            players]
+            players,
+            menu]
   where
     -- Pozadina.
     backgroundPicture = pictures [drawGameObject backgroundImage]
@@ -129,6 +159,11 @@ render game =
 
     players = pictures [paddle (player1 game), paddle (player2 game)]
 
+    -- Menu
+    menuPicture :: GameObject -> Picture
+    menuPicture obj = drawGameObject obj
+
+    menu = if (pause game) then (if (start game) then (pictures [menuPicture pauseMenu]) else (pictures [menuPicture beginMenu])) else (pictures [menuPicture noMenu])
 
 -- | Kretanje lopte
 moveBall :: Float        -- ^ Broj sekundi od proslog azuriranja pozicije.
@@ -213,6 +248,12 @@ handleKeys (EventKey (Char 'a') Down _ _) game = game { player2Left = True }
 handleKeys (EventKey (Char 'd') Down _ _) game = game { player2Right = True }
 handleKeys (EventKey (Char 'a') Up _ _) game = game { player2Left = False }
 handleKeys (EventKey (Char 'd') Up _ _) game = game { player2Right = False }
+-- Pauziranje igre 'p'
+handleKeys (EventKey (Char 'p') Down _ _) game = if (start game) then (game { pause = not (pause game) }) else game
+handleKeys (EventKey (Char 'p') Up _ _) game = game
+-- Pokretanje igre 'n'
+handleKeys (EventKey (Char 'n') Down _ _) game = if (pause game) then (game { reset = True, start = True, pause = False }) else game
+handleKeys (EventKey (Char 'n') Up _ _) game = game
 -- Default
 handleKeys _ game = game
 

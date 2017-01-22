@@ -7,6 +7,11 @@ module GameObject
 , getGameObjectCoordinates
 , getGameObjectSize
 , detectCollision
+, getCollisionType
+, getLeftCollisionCoefficient
+, getRightCollisionAngleCoefficient
+, getTopCollisionAngleCoefficient
+, getBottomCollisionAngleCoefficient
 ) where
 
 import Graphics.Gloss
@@ -27,6 +32,9 @@ data CollisionType = TopCollision
                    | RightCollision
                    | NoCollision
                    deriving (Eq) 
+
+
+type Collision = (CollisionType, Float, Float, Float, Float)
 
 createGameObject :: (Float, Float) -> (Float, Float) -> (String, Float, Float) ->  GameObject
 createGameObject (nx, ny) (w, h) (path, pw ,ph) = obj
@@ -122,3 +130,18 @@ detectCollision obj1 obj2 = (collisionType,
         RightCollision
       else
         NoCollision
+
+getCollisionType :: Collision -> CollisionType
+getCollisionType (collisionType, _, _, _, _) = collisionType
+
+getLeftCollisionCoefficient :: Collision -> Float
+getLeftCollisionCoefficient (_, leftCollisionCoefficient, _, _, _) = leftCollisionCoefficient
+
+getRightCollisionAngleCoefficient :: Collision -> Float
+getRightCollisionAngleCoefficient (_, _, rightCollisionAngleCoefficient, _, _) = rightCollisionAngleCoefficient
+
+getTopCollisionAngleCoefficient :: Collision -> Float
+getTopCollisionAngleCoefficient (_, _, _, topCollisionAngleCoefficient, _) = topCollisionAngleCoefficient
+
+getBottomCollisionAngleCoefficient :: Collision -> Float
+getBottomCollisionAngleCoefficient (_, _, _, _, bottomCollisionAngleCoefficient) = bottomCollisionAngleCoefficient

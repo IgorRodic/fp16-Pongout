@@ -26,10 +26,64 @@ data PongoutGame = Game
   , player1Right :: Bool       -- ^ Kretanje prvog igraca u desno.
   , player2Left :: Bool        -- ^ Kretanje drugog igraca u levo.
   , player2Right :: Bool       -- ^ Kretanje drugog igraca u desno.
+  , bricksArray :: [Brick]     -- ^ Plocice
   , pause :: Bool              -- ^ Indikator da li je igra pauzirana
   , start :: Bool              -- ^ Indikator da li je igra pokrenuta
   , reset :: Bool              -- ^ Indikator da li je igra resetovana
   }
+
+
+-- plocice (x_koordinata, y_koordinata, razbijena)
+type Brick = (Float, Float, Bool)
+
+brickX :: Brick -> Float
+brickX (x, _, _) = x
+
+brickY :: Brick -> Float
+brickY (_, y, _) = y
+
+brickDestroyed :: Brick -> Bool
+brickDestroyed (_, _, destroyed) = destroyed
+
+makeBrick :: (Float,Float) -> Brick
+makeBrick (x,y) = (x, y, False)
+
+loadLevel :: Int -> [Brick]
+loadLevel 1 = map makeBrick [((-360), 90), ((-295), 90), ((-230), 90), ((-165), 90), ((-95), 90), ((-35), 90), (35, 90), (100, 90), (165, 90), (230, 90), (295, 90), (360, 90),
+                             ((-260), 45), ((-195), 45), ((-65), 45), (0, 45), (65, 45), (195, 45), (260, 45),
+                             ((-345), 0), ((-280), 0), ((-215), 0), ((-150), 0), (150, 0), (215, 0), (280, 0), (345, 0),
+                             ((-260), (-45)), ((-195), (-45)), ((-65), (-45)), (0, (-45)), (65, (-45)), (195, (-45)), (260, (-45)),
+                             ((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-165), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (100, (-90)), (165, (-90)), (230, (-90)), (295, (-90)), (360, (-90))
+                            ]
+
+loadLevel 2 = map makeBrick [((-360), 90), ((-295), 90), ((-230), 90), ((-145), 90), ((-80), 90), ((-15), 90), (90, 90), (155, 90), (255, 90), (320, 90),
+                             ((-360), 45), ((-145), 45), ((-15), 45), (70, 45), (205, 45), (340, 45),
+                             ((-360), 0), ((-295), 0), ((-230), 0), ((-145), 0), ((-80), 0), ((-15), 0), (90, 0), (320, 0),
+                             ((-360), (-45)), ((-145), (-45)), (130, (-45)), (280, (-45)),
+                             ((-360), (-90)), ((-145), (-90)), (205,(-90))
+                            ] 
+
+loadLevel 3 = map makeBrick [((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-165), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (100, (-90)), (165, (-90)), (230, (-90)), (295, (-90)), (360, (-90)),                            
+                             ((-360), (-45)), ((-200), (-45)), ((-40), (-45)), (120, (-45)), (280, (-45)),
+                             ((-320), 0), ((-240), 0), ((-160), 0), (-80,0), (0,0), (80, 0), (160, 0), (240, 0), (320, 0),
+                             ((-280), 45), ((-120), 45), (40, 45), (200, 45), (360, 45),
+                             ((-360), 90), ((-295), 90), ((-230), 90), ((-165), 90), ((-95), 90), ((-35), 90), (35, 90), (100, 90), (165, 90), (230, 90), (295, 90), (360, 90)
+                            ]
+
+loadLevel 4 = map makeBrick [((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (165, (-90)), (230, (-90)), (295, (-90)),                            
+                             ((-360), (-45)), ((-295), (-45)), ((-230), (-45)), ((-95), (-45)), ((-35), (-45)), (35, (-45)), (165, (-45)), (230, (-45)), (295, (-45)),                           
+                             ((-360), 0), ((-230), 0), ((-95), 0), (35, 0), (165, 0), (295, 0),                           
+                             ((-360), 45), ((-230), 45), ((-165), 45), ((-95), 45), (35, 45), (100, 45), (165, 45), (295, 45), (360, 45),                            
+                             ((-360), 90), ((-230), 90), ((-165), 90), ((-95), 90), (35, 90), (100, 90), (165, 90), (295, 90), (360, 90)
+                            ]
+                             
+loadLevel _ = []
+
+brickWidth :: Float
+brickWidth = 40
+
+brickHeight :: Float
+brickHeight = 20
 
 windowSizeWidth :: Int
 windowSizeWidth = 800
@@ -88,6 +142,14 @@ pauseMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu2.png",
 noMenu :: GameObject
 noMenu = createGameObject (0,0) (0,0) ("images/menu2.png", 650 , 350)
 
+createBrick :: Brick -> GameObject
+createBrick brick = createGameObject ((brickX brick), (brickY brick)) (brickWidth, brickHeight) ("images/brick.png", 304, 122)
+
+createBricksObjects :: [Brick] -> [GameObject]
+createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
+                          where
+                             notDestroyed = filter (\x -> not (brickDestroyed x)) bricks
+
 initialState :: PongoutGame
 initialState = Game
   { ball = createGameObject (0, 0) (ballRadius, ballRadius) ("images/ball.png", 311, 309) 
@@ -98,6 +160,7 @@ initialState = Game
   , player1Right = False
   , player2Left = False
   , player2Right = False
+  , bricksArray = loadLevel 1
   , pause = True
   , reset = False
   , start = False
@@ -113,6 +176,7 @@ resetGame game = game
   , player1Right = False
   , player2Left = False
   , player2Right = False
+  , bricksArray = loadLevel 1
   , pause = False
   , start = True
   , reset = False 
@@ -123,8 +187,7 @@ update :: Float -> PongoutGame -> PongoutGame
 update seconds currentGame = if (reset currentGame) then 
                                 resetGame currentGame
                               else if (not $ pause currentGame) then 
-                                -- vratiti brickBounce kad se uradi
-                                (wallBounce $ movePlayer $ moveBall seconds currentGame)
+                                (wallBounce $ movePlayer $ bricksBounce $ moveBall seconds currentGame)
                               else currentGame
 
 
@@ -133,6 +196,7 @@ render :: PongoutGame -- ^ Stanje igre.
        -> Picture      -- ^ Slika stanja igre.
 render game =
   pictures [backgroundPicture,
+            bricks,
             balls,
             walls,
             players,
@@ -141,6 +205,14 @@ render game =
     -- Pozadina.
     backgroundPicture = pictures [drawGameObject backgroundImage]
 
+    -- Plocice
+    brickPicture :: GameObject -> Picture
+    brickPicture obj = drawGameObject obj
+
+    bricksObj = createBricksObjects (bricksArray game)
+
+    bricks = Pictures (foldr (\x acc -> [(brickPicture x)] ++ acc) [Blank] bricksObj)
+ 
     --  Lopta.
     ballPicture :: GameObject -> Picture
     ballPicture obj = drawGameObject obj
@@ -163,7 +235,13 @@ render game =
     menuPicture :: GameObject -> Picture
     menuPicture obj = drawGameObject obj
 
-    menu = if (pause game) then (if (start game) then (pictures [menuPicture pauseMenu]) else (pictures [menuPicture beginMenu])) else (pictures [menuPicture noMenu])
+    menu = if (pause game) then 
+               (if (start game) then 
+                  (pictures [menuPicture pauseMenu])
+               else (pictures [menuPicture beginMenu]))
+           else (pictures [menuPicture noMenu])
+
+
 
 -- | Kretanje lopte
 moveBall :: Float        -- ^ Broj sekundi od proslog azuriranja pozicije.
@@ -218,9 +296,9 @@ wallBounce game = game { ballVel = (vx', vy') }
     (x, y) = getGameObjectCoordinates (ball game)
     (vx, vy) = ballVel game
 
-    (collisionTypeLeftWall, angleLeft1, angleRight1, angleTop1, angleBottom1) = detectCollision (ball game) leftWall 
+    collisionTypeLeftWall = getCollisionType $ detectCollision (ball game) leftWall 
 
-    (collisionTypeRightWall, angleLeft2, angleRight2, angleTop2, angleBottom2) = detectCollision (ball game) rightWall
+    collisionTypeRightWall = getCollisionType $ detectCollision (ball game) rightWall
 
     --Nova brzina u odnosu na vrstu kolizije.
     vx' = if collisionTypeLeftWall == LeftCollision || 
@@ -234,6 +312,30 @@ wallBounce game = game { ballVel = (vx', vy') }
              collisionTypeRightWall == TopCollision ||
              collisionTypeRightWall == BottomCollision
           then -vy else vy
+
+-- | Obradjivanje kolizije sa plocicama
+bricksBounce :: PongoutGame -> PongoutGame
+bricksBounce game = game { ballVel = (vx', vy'), bricksArray = bricksArray' }
+  where    
+    collisions = map (\b -> getCollisionType (detectCollision (ball game) b)) (createBricksObjects (bricksArray game))
+    collisionsTypes = filter (\c -> c /= NoCollision ) collisions
+    
+    typeCollision = if (collisionsTypes /= []) then (head collisionsTypes) else NoCollision
+
+    vx' = if typeCollision == LeftCollision || 
+             typeCollision == RightCollision
+          then -(fst (ballVel game)) else (fst (ballVel game))
+
+    vy' = if typeCollision == TopCollision || 
+             typeCollision == BottomCollision 
+          then -(snd (ballVel game)) else (snd (ballVel game))
+
+    bricksArray' = changeBrickArray (bricksArray game) (ball game)
+
+changeBrickArray :: [Brick] -> GameObject -> [Brick]
+changeBrickArray bricks ball = map (\b -> ((brickX b), (brickY b), (makeDestroy b))) bricks
+    where makeDestroy b = if ((not(brickDestroyed b)) && (getCollisionType(detectCollision ball (createBrick b))/=NoCollision)) then True
+                          else (brickDestroyed b)
 
 
 -- | Reagovanje na dogadjaje tastature

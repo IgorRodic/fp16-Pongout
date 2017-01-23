@@ -4,6 +4,7 @@ module GameObject
 , createGameObject
 , moveGameObject  
 , drawGameObject
+, resetGameObject
 , getGameObjectCoordinates
 , getGameObjectSize
 , detectCollision
@@ -55,6 +56,12 @@ moveGameObject obj dx dy = obj { x = x', y = y' }
                             x' = x obj + dx
                             y' = y obj + dy 
 
+resetGameObject :: GameObject -> Float -> Float -> GameObject
+resetGameObject obj dx dy = obj { x = x', y = y' }
+                        where 
+                            x' = dx
+                            y' = dy 
+
 drawGameObject :: GameObject -> Picture
 drawGameObject obj = translate (x obj) (y obj) $ image obj
 
@@ -64,7 +71,7 @@ getGameObjectCoordinates obj = (x obj , y obj)
 getGameObjectSize :: GameObject -> (Float, Float)
 getGameObjectSize obj = (width obj , height obj) 
 
-detectCollision :: GameObject -> GameObject -> (CollisionType, Float, Float, Float, Float)
+detectCollision :: GameObject -> GameObject -> Collision
 detectCollision obj1 obj2 = (collisionType, 
                              leftCollisionCoefficient, 
                              rightCollisionAngleCoefficient, 

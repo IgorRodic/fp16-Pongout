@@ -18,8 +18,10 @@ type Position = (Float, Float)
 --                    deriving (Eq) 
 
 data PongoutGame = Game
-  { ball :: GameObject         -- ^ Lopta
-  , ballVel :: (Float, Float)  -- ^ Brzina lopte (x, y).
+  { ball1 :: GameObject        -- ^ Prva lopta
+  , ball2 :: GameObject        -- ^ Druga lopta
+  , ball1Vel :: (Float, Float)  -- ^ Brzina prve lopte (x, y).
+  , ball2Vel :: (Float, Float)  -- ^ Brzina druge lopte (x, y).
   , player1 :: GameObject      -- ^ Prvi igrac
   , player2 :: GameObject      -- ^ Drugi igrac
   , player1Left :: Bool        -- ^ Kretanje prvog igraca u levo.
@@ -30,6 +32,8 @@ data PongoutGame = Game
   , pause :: Bool              -- ^ Indikator da li je igra pauzirana
   , start :: Bool              -- ^ Indikator da li je igra pokrenuta
   , reset :: Bool              -- ^ Indikator da li je igra resetovana
+  , player1Points :: Int       -- ^ Poeni prvog igraca.
+  , player2Points :: Int       -- ^ Poeni drugog igraca.
   }
 
 
@@ -152,10 +156,12 @@ createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
 
 initialState :: PongoutGame
 initialState = Game
-  { ball = createGameObject (0, 0) (ballRadius, ballRadius) ("images/ball.png", 311, 309) 
-  , ballVel = (300, 0)
-  , player1 = createGameObject (40, (-320)) (playerWidth, playerHeight) ("images/paddle.png", 2400, 930) 
-  , player2 = createGameObject ((-80), 320) (playerWidth, playerHeight) ("images/paddle.png", 2400, 930) 
+  { ball1 = createGameObject (0, -100) (ballRadius, ballRadius) ("images/ball1.png", 581, 604) 
+  , ball2 = createGameObject (0, 100) (ballRadius, ballRadius) ("images/ball2.png", 581, 604) 
+  , ball1Vel = (0, -200)
+  , ball2Vel = (0, 200)
+  , player1 = createGameObject (40, (-320)) (playerWidth, playerHeight) ("images/player1.png", 581, 257) 
+  , player2 = createGameObject ((-80), 320) (playerWidth, playerHeight) ("images/player2.png", 581, 257) 
   , player1Left = False
   , player1Right = False
   , player2Left = False
@@ -164,14 +170,18 @@ initialState = Game
   , pause = True
   , reset = False
   , start = False
+  , player1Points = 0
+  , player2Points = 0
   }
 
 resetGame :: PongoutGame -> PongoutGame
 resetGame game = game 
-  { ball = createGameObject (0, 0) (ballRadius, ballRadius) ("images/ball.png", 311, 309) 
-  , ballVel = (300, 0)
-  , player1 = createGameObject (40, (-320)) (playerWidth, playerHeight) ("images/paddle.png", 2400, 930) 
-  , player2 = createGameObject ((-80), 320) (playerWidth, playerHeight) ("images/paddle.png", 2400, 930) 
+  { ball1 = createGameObject (0, -100) (ballRadius, ballRadius) ("images/ball1.png", 581, 604) 
+  , ball2 = createGameObject (0, 100) (ballRadius, ballRadius) ("images/ball2.png", 581, 604) 
+  , ball1Vel = (0, -200)
+  , ball2Vel = (0, 200)
+  , player1 = createGameObject (40, (-320)) (playerWidth, playerHeight) ("images/player1.png", 581, 257) 
+  , player2 = createGameObject ((-80), 320) (playerWidth, playerHeight) ("images/player2.png", 581, 257) 
   , player1Left = False
   , player1Right = False
   , player2Left = False
@@ -180,6 +190,8 @@ resetGame game = game
   , pause = False
   , start = True
   , reset = False 
+  , player1Points = 0
+  , player2Points = 0
   }
 
 -- | Azuriranje stanja igre
@@ -187,20 +199,25 @@ update :: Float -> PongoutGame -> PongoutGame
 update seconds currentGame = if (reset currentGame) then 
                                 resetGame currentGame
                               else if (not $ pause currentGame) then 
-                                (wallBounce $ movePlayer $ bricksBounce $ moveBall seconds currentGame)
+                              -- dodati checkVictory
+                                (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ moveBalls seconds currentGame)
                               else currentGame
 
 
 -- | Funkcija iscrtavanja
 render :: PongoutGame -- ^ Stanje igre.
-       -> Picture      -- ^ Slika stanja igre.
+       -> Picture     -- ^ Slika stanja igre.
 render game =
   pictures [backgroundPicture,
             bricks,
             balls,
             walls,
             players,
-            menu]
+            menu,
+            pointsRectangle 300 350,
+            pointsText ("Points: " ++ (show $ player1Points game)) 305 (-305),
+            pointsRectangle (-295) 355,
+            pointsText ("Points: " ++ (show $ player2Points game)) 310 290]
   where
     -- Pozadina.
     backgroundPicture = pictures [drawGameObject backgroundImage]
@@ -217,7 +234,7 @@ render game =
     ballPicture :: GameObject -> Picture
     ballPicture obj = drawGameObject obj
 
-    balls = pictures [ballPicture (ball game)]
+    balls = pictures [ballPicture (ball1 game), ballPicture (ball2 game)]
 
     --  Zidovi.
     wall :: GameObject -> Picture
@@ -231,7 +248,7 @@ render game =
 
     players = pictures [paddle (player1 game), paddle (player2 game)]
 
-    -- Menu
+    -- Menu.
     menuPicture :: GameObject -> Picture
     menuPicture obj = drawGameObject obj
 
@@ -241,29 +258,65 @@ render game =
                else (pictures [menuPicture beginMenu]))
            else (pictures [menuPicture noMenu])
 
+    -- Poeni.
+    -- Prikaz poena
+    pointsRectangle :: Float -> Float -> Picture
+    pointsRectangle x y = rotate 90 $
+                          translate x y $
+                          color pointsRectangleColor $
+                          rectangleSolid 30 100
+
+    pointsRectangleColor = dark green
+
+    pointsText :: String -> Float -> Float -> Picture
+    pointsText tekst x y = translate x y $
+                           color pointsTextColor $
+                           scale 0.1 0.1 $
+                           text tekst
+
+    pointsTextColor = white
 
 
--- | Kretanje lopte
-moveBall :: Float        -- ^ Broj sekundi od proslog azuriranja pozicije.
-         -> PongoutGame -- ^ Inicijalno stanje igre.
-         -> PongoutGame -- ^ Dobijeno stanje igre, sa azuriranom pozicijom lopte.
-moveBall seconds game = game { ball = newBall }
+-- | Provera da li je neki od igraca pobedio.
+-- checkVictory :: PongoutGame -> PongoutGame 
+-- checkVictory game = game {} 
+--   where
+--     player1Wins = if (player1Points game) >= 600
+--                     then True
+--                   else False
+
+--     player2Wins = if (player2Points game) >= 600
+--                     then True
+--                   else False
+
+--     -- Prelazak na sledeci nivo.
+
+
+-- | Kretanje lopte.
+moveBalls :: Float        -- ^ Broj sekundi od proslog azuriranja pozicije.
+          -> PongoutGame -- ^ Inicijalno stanje igre.
+          -> PongoutGame -- ^ Dobijeno stanje igre, sa azuriranom pozicijom lopte.
+moveBalls seconds game = game { ball1 = newBall1, ball2 = newBall2 }
   where
-    -- Stara brzina i lokacija.
-    (x, y) = getGameObjectCoordinates (ball game)
-    (vx, vy) = ballVel game
+    -- Stare brzine.
+    (vx1, vy1) = ball1Vel game
+    (vx2, vy2) = ball2Vel game
 
-    -- Nova pozicija.
-    x' = vx * seconds
-    y' = vy * seconds
+    -- Nove pozicije.
+    x1' = vx1 * seconds
+    y1' = vy1 * seconds
 
-    newBall = moveGameObject (ball game) x' y'
+    x2' = vx2 * seconds
+    y2' = vy2 * seconds
+
+    newBall1 = moveGameObject (ball1 game) x1' y1'
+    newBall2 = moveGameObject (ball2 game) x2' y2'
 
 
 movePlayer :: PongoutGame -> PongoutGame
 movePlayer game = game { player1 = newPlayer1, player2 = newPlayer2 }
   where
-    -- Pozicije i nacini kretanja igraca
+    -- Pozicije i nacini kretanja igraca.
     (player1X, player1Y) = getGameObjectCoordinates (player1 game)
     (player2X, player2Y) = getGameObjectCoordinates (player2 game)
     leftArrowHeld = player1Left game 
@@ -271,7 +324,7 @@ movePlayer game = game { player1 = newPlayer1, player2 = newPlayer2 }
     aHeld = player2Left game 
     dHeld = player2Right game
 
-    -- Izracunavanje pomeraja igraca
+    -- Izracunavanje pomeraja igraca.
     player1Step = if (player1X > -60 + fromIntegral windowSizeWidth / 2) then -7
                   else if (player1X < 60 -fromIntegral windowSizeWidth / 2) then 7 
                   else if leftArrowHeld == True then -7
@@ -288,54 +341,256 @@ movePlayer game = game { player1 = newPlayer1, player2 = newPlayer2 }
     newPlayer2 = moveGameObject (player2 game) player2Step 0
 
 
--- | Obradjivanje kolizije sa zidovima
+-- | Obradjivanje kolizije sa zidovima.
 wallBounce :: PongoutGame -> PongoutGame
-wallBounce game = game { ballVel = (vx', vy') }
+wallBounce game = game { ball1 = newBall1, 
+                         ball2 = newBall2, 
+                         ball1Vel = vxReset1, 
+                         ball2Vel = vxReset2, 
+                         player1Points = oldPlayer1Points + newPlayer1Ponts, 
+                         player2Points = oldPlayer2Points + newPlayer2Ponts }
   where
-    -- Stara brzina i lokacija.
-    (x, y) = getGameObjectCoordinates (ball game)
-    (vx, vy) = ballVel game
+    collisionTypeLeftWall1 = getCollisionType $ detectCollision (ball1 game) leftWall 
+    collisionTypeRightWall1 = getCollisionType $ detectCollision (ball1 game) rightWall
 
-    collisionTypeLeftWall = getCollisionType $ detectCollision (ball game) leftWall 
+    collisionTypeLeftWall2 = getCollisionType $ detectCollision (ball2 game) leftWall 
+    collisionTypeRightWall2 = getCollisionType $ detectCollision (ball2 game) rightWall
 
-    collisionTypeRightWall = getCollisionType $ detectCollision (ball game) rightWall
+    --Nova brzina prve lopte.
+    vx1' = if collisionTypeLeftWall1 == LeftCollision || 
+             collisionTypeLeftWall1 == RightCollision ||
+             collisionTypeRightWall1 == LeftCollision ||
+             collisionTypeRightWall1 == RightCollision
+          then -(fst $ ball1Vel game) else (fst $ ball1Vel game)
 
-    --Nova brzina u odnosu na vrstu kolizije.
-    vx' = if collisionTypeLeftWall == LeftCollision || 
-             collisionTypeLeftWall == RightCollision ||
-             collisionTypeRightWall == LeftCollision ||
-             collisionTypeRightWall == RightCollision
-          then -vx else vx
+    vy1' = if collisionTypeLeftWall1 == TopCollision || 
+             collisionTypeLeftWall1 == BottomCollision ||
+             collisionTypeRightWall1 == TopCollision ||
+             collisionTypeRightWall1 == BottomCollision
+          then -(snd $ ball1Vel game) else (snd $ ball1Vel game)
 
-    vy' = if collisionTypeLeftWall == TopCollision || 
-             collisionTypeLeftWall == BottomCollision ||
-             collisionTypeRightWall == TopCollision ||
-             collisionTypeRightWall == BottomCollision
-          then -vy else vy
+    --Nova brzina druge lopte.
+    vx2' = if collisionTypeLeftWall2 == LeftCollision || 
+             collisionTypeLeftWall2 == RightCollision ||
+             collisionTypeRightWall2 == LeftCollision ||
+             collisionTypeRightWall2 == RightCollision
+          then -(fst $ ball2Vel game) else (fst $ ball2Vel game)
 
--- | Obradjivanje kolizije sa plocicama
+    vy2' = if collisionTypeLeftWall2 == TopCollision || 
+             collisionTypeLeftWall2 == BottomCollision ||
+             collisionTypeRightWall2 == TopCollision ||
+             collisionTypeRightWall2 == BottomCollision
+          then -(snd $ ball2Vel game) else (snd $ ball2Vel game)
+
+    --Provera da li je loptica prosla iza nekog od igraca.
+    (x1, y1) = getGameObjectCoordinates (ball1 game)
+    (x2, y2) = getGameObjectCoordinates (ball2 game)
+    (oldPlayer1Points, oldPlayer2Points) = ((player1Points game), (player2Points game))
+
+    vxReset1 = if y1 < -380 || y1 > 380
+                 then (0, -100)
+               else (vx1', vy1')
+
+    newPlayer1Ponts = if y1 < -380
+                        then -30
+                      else if y1 > 380
+                        then 100
+                      else 0
+    newBall1 = if newPlayer1Ponts /= 0
+                 then resetGameObject (ball1 game) 0 (-100)
+               else
+                 (ball1 game)
+
+    vxReset2 = if y2 < -380 || y2 > 380
+                 then (0, 100)
+               else (vx2', vy2')
+
+    newPlayer2Ponts = if y2 > 380
+                        then -30
+                      else if y2 < -380
+                        then 100
+                      else 0
+    newBall2 = if newPlayer2Ponts /= 0
+                 then resetGameObject (ball2 game) 0 100
+               else
+                 (ball2 game)
+
+
+-- | Obradjivanje kolizije sa plocicama.
 bricksBounce :: PongoutGame -> PongoutGame
-bricksBounce game = game { ballVel = (vx', vy'), bricksArray = bricksArray' }
+bricksBounce game = game { ball1Vel = (vx1', vy1'), 
+                           ball2Vel = (vx2', vy2'), 
+                           bricksArray = bricksArray'',
+                           player1Points = oldPlayer1Points + newPlayer1Ponts, 
+                           player2Points = oldPlayer2Points + newPlayer2Ponts }
   where    
-    collisions = map (\b -> getCollisionType (detectCollision (ball game) b)) (createBricksObjects (bricksArray game))
-    collisionsTypes = filter (\c -> c /= NoCollision ) collisions
-    
-    typeCollision = if (collisionsTypes /= []) then (head collisionsTypes) else NoCollision
+    (oldPlayer1Points, oldPlayer2Points) = ((player1Points game), (player2Points game))
 
-    vx' = if typeCollision == LeftCollision || 
-             typeCollision == RightCollision
-          then -(fst (ballVel game)) else (fst (ballVel game))
+    collisions1 = map (\b -> getCollisionType (detectCollision (ball1 game) b)) (createBricksObjects (bricksArray game))
+    collisionsTypes1 = filter (\c -> c /= NoCollision ) collisions1
+    typeCollision1 = if (collisionsTypes1 /= []) then (head collisionsTypes1) else NoCollision
 
-    vy' = if typeCollision == TopCollision || 
-             typeCollision == BottomCollision 
-          then -(snd (ballVel game)) else (snd (ballVel game))
+    collisions2 = map (\b -> getCollisionType (detectCollision (ball2 game) b)) (createBricksObjects (bricksArray game))
+    collisionsTypes2 = filter (\c -> c /= NoCollision ) collisions2
+    typeCollision2 = if (collisionsTypes2 /= []) then (head collisionsTypes2) else NoCollision
 
-    bricksArray' = changeBrickArray (bricksArray game) (ball game)
+    vx1' = if typeCollision1 == LeftCollision || 
+             typeCollision1 == RightCollision
+          then -(fst $ ball1Vel game) else (fst $ ball1Vel game)
+
+    vy1' = if typeCollision1 == TopCollision || 
+             typeCollision1 == BottomCollision 
+          then -(snd $ ball1Vel game) else (snd $ ball1Vel game)
+
+    vx2' = if typeCollision2 == LeftCollision || 
+             typeCollision2 == RightCollision
+          then -(fst $ ball2Vel game) else (fst $ ball2Vel game)
+
+    vy2' = if typeCollision2 == TopCollision || 
+             typeCollision2 == BottomCollision 
+          then -(snd $ ball2Vel game) else (snd $ ball2Vel game)
+
+    -- Izracunavanje poena.
+    newPlayer1Ponts = if typeCollision1 /= NoCollision
+                        then 20
+                      else 0
+
+    newPlayer2Ponts = if typeCollision2 /= NoCollision
+                        then 20
+                      else 0
+
+    bricksArray'  = changeBrickArray (bricksArray game) (ball1 game)
+    bricksArray'' = changeBrickArray bricksArray' (ball2 game)
 
 changeBrickArray :: [Brick] -> GameObject -> [Brick]
 changeBrickArray bricks ball = map (\b -> ((brickX b), (brickY b), (makeDestroy b))) bricks
     where makeDestroy b = if ((not(brickDestroyed b)) && (getCollisionType(detectCollision ball (createBrick b))/=NoCollision)) then True
                           else (brickDestroyed b)
+
+
+-- | Obradjivanje kolizije sa igracima.
+paddleBounce :: PongoutGame -> PongoutGame
+paddleBounce game = game { ball1Vel = (vx1', vy1'), ball2Vel = (vx2', vy2') }
+  where
+    (collisionTypePlayer1, leftAnglePlayer1, rightAnglePlayer1, topAnglePlayer1, bottomAnglePlayer1) = detectCollision (ball1 game) (player1 game)
+    (collisionTypePlayer2, leftAnglePlayer2, rightAnglePlayer2, topAnglePlayer2, bottomAnglePlayer2) = detectCollision (ball1 game) (player2 game)
+
+    (collisionTypePlayer1', leftAnglePlayer1', rightAnglePlayer1', topAnglePlayer1', bottomAnglePlayer1') = detectCollision (ball2 game) (player1 game)
+    (collisionTypePlayer2', leftAnglePlayer2', rightAnglePlayer2', topAnglePlayer2', bottomAnglePlayer2') = detectCollision (ball2 game) (player2 game)
+
+    -- Azurirana brzina prve lopte.
+    vx1' = -- Prvi igrac.
+          if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 < -10
+            then 10*topAnglePlayer1
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 >= -10 && topAnglePlayer1 <= 0
+            then -60
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 >= 0 && topAnglePlayer1 <= 10
+            then 60
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 > 10
+            then 10*topAnglePlayer1
+          else if collisionTypePlayer1 == LeftCollision
+            then -500
+          else if collisionTypePlayer1 == RightCollision
+            then 500
+          -- Drugi igrac.
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 < -10
+            then 10*bottomAnglePlayer2
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 >= -10 && bottomAnglePlayer2 <= 0
+            then -60
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 >= 0 && bottomAnglePlayer2 <= 10
+            then 60
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 > 10
+            then 10*bottomAnglePlayer2
+          else if collisionTypePlayer2 == LeftCollision
+            then -500
+          else if collisionTypePlayer2 == RightCollision
+            then 500
+          else fst $ ball1Vel game
+
+    vy1' = -- Prvi igrac.
+          if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 < -10
+            then (-10)*topAnglePlayer1
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 >= -10 && topAnglePlayer1 <= 0
+            then 350
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 >= 0 && topAnglePlayer1 <= 10
+            then 350
+          else if collisionTypePlayer1 == TopCollision && topAnglePlayer1 /= 0 && topAnglePlayer1 > 10
+            then 10*topAnglePlayer1
+          else if collisionTypePlayer1 == LeftCollision
+            then -500
+          else if collisionTypePlayer1 == RightCollision 
+            then -500
+          -- Drugi igrac.
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 < -10
+            then 15*bottomAnglePlayer2
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 >= -10 && bottomAnglePlayer2 <= 0
+            then -350
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 >= 0 && bottomAnglePlayer2 <= 10
+            then -350
+          else if collisionTypePlayer2 == BottomCollision && bottomAnglePlayer2 /= 0 && bottomAnglePlayer2 > 10
+            then (-15)*bottomAnglePlayer2
+          else if collisionTypePlayer2 == LeftCollision
+            then 500
+          else if collisionTypePlayer2 == RightCollision
+            then 500
+          else snd $ ball1Vel game
+
+    -- Azurirana brzina druge lopte.
+    vx2' = -- Prvi igrac.
+          if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' < -10
+            then 10*topAnglePlayer1'
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' >= -10 && topAnglePlayer1' <= 0
+            then -60
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' >= 0 && topAnglePlayer1' <= 10
+            then 60
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' > 10
+            then 10*topAnglePlayer1'
+          else if collisionTypePlayer1' == LeftCollision
+            then -500
+          else if collisionTypePlayer1' == RightCollision
+            then 500
+          -- Drugi igrac.
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' < -10
+            then 10*bottomAnglePlayer2'
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' >= -10 && bottomAnglePlayer2' <= 0
+            then -60
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' >= 0 && bottomAnglePlayer2' <= 10
+            then 60
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' > 10
+            then 10*bottomAnglePlayer2'
+          else if collisionTypePlayer2' == LeftCollision
+            then -500
+          else if collisionTypePlayer2' == RightCollision
+            then 500
+          else fst $ ball2Vel game
+
+    vy2' = -- Prvi igrac.
+          if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' < -10
+            then (-10)*topAnglePlayer1'
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' >= -10 && topAnglePlayer1' <= 0
+            then 350
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' >= 0 && topAnglePlayer1' <= 10
+            then 350
+          else if collisionTypePlayer1' == TopCollision && topAnglePlayer1' /= 0 && topAnglePlayer1' > 10
+            then 10*topAnglePlayer1'
+          else if collisionTypePlayer1' == LeftCollision
+            then -500
+          else if collisionTypePlayer1 == RightCollision
+            then -500
+          -- Drugi igrac.
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' < -10
+            then 10*bottomAnglePlayer2'
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' >= -10 && bottomAnglePlayer2' <= 0
+            then -350
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' >= 0 && bottomAnglePlayer2' <= 10
+            then -350
+          else if collisionTypePlayer2' == BottomCollision && bottomAnglePlayer2' /= 0 && bottomAnglePlayer2' > 10
+            then (-10)*bottomAnglePlayer2'
+          else if collisionTypePlayer2' == LeftCollision
+            then 500
+          else if collisionTypePlayer2' == RightCollision
+            then 500
+          else snd $ ball2Vel game
 
 
 -- | Reagovanje na dogadjaje tastature

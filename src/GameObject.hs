@@ -112,19 +112,27 @@ detectCollision obj1 obj2 = (collisionType,
 
 
     leftCollisionCoefficient        = if (leftCollision1 /= Nothing || leftCollision2 /= Nothing) then 
-                                        ((leftCollision2X+leftCollision1X)/2)-x2
+                                        (if ((leftCollision2X+leftCollision1X)/2)-x2 /= 0
+                                           then ((leftCollision2X+leftCollision1X)/2)-x2
+                                         else 1)
                                       else 0
 
     rightCollisionAngleCoefficient  = if rightCollision1 /= Nothing || rightCollision2 /= Nothing then 
-                                        ((rightCollision2X+rightCollision1X)/2)-x2
+                                        (if ((rightCollision2X+rightCollision1X)/2)-x2 /= 0
+                                           then ((rightCollision2X+rightCollision1X)/2)-x2
+                                         else 1)
                                       else 0
 
     topCollisionAngleCoefficient    = if (topCollision1 /= Nothing || topCollision2 /= Nothing) then 
-                                        ((topCollision2X+topCollision1X)/2)-x2
+                                        (if ((topCollision2X+topCollision1X)/2)-x2 /= 0
+                                           then ((topCollision2X+topCollision1X)/2)-x2
+                                         else 1)
                                       else 0
 
     bottomCollisionAngleCoefficient = if bottomCollision1 /= Nothing || bottomCollision2 /= Nothing then 
-                                        ((bottomCollision2X+bottomCollision1X)/2)-x2
+                                        (if ((bottomCollision2X+bottomCollision1X)/2)-x2 /= 0
+                                           then ((bottomCollision2X+bottomCollision1X)/2)-x2
+                                         else 1)
                                       else 0
 
     collisionType = 

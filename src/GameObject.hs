@@ -1,6 +1,7 @@
 module GameObject 
 ( GameObject
 , CollisionType (TopCollision, BottomCollision, LeftCollision, RightCollision, NoCollision)
+, Collision
 , createGameObject
 , moveGameObject  
 , drawGameObject

@@ -1,6 +1,7 @@
 module Main where
 
 import GameObject
+import Level
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game as Game
 import Graphics.Gloss.Interface.Pure.Simulate
@@ -10,18 +11,11 @@ import Data.Maybe
 type Radius = Float 
 type Position = (Float, Float)
 
--- data CollisionType = TopCollision 
---                    | BottomCollision
---                    | LeftCollision
---                    | RightCollision
---                    | NoCollision
---                    deriving (Eq) 
-
 data PongoutGame = Game
   { ball1 :: GameObject        -- ^ Prva lopta
   , ball2 :: GameObject        -- ^ Druga lopta
-  , ball1Vel :: (Float, Float)  -- ^ Brzina prve lopte (x, y).
-  , ball2Vel :: (Float, Float)  -- ^ Brzina druge lopte (x, y).
+  , ball1Vel :: (Float, Float) -- ^ Brzina prve lopte (x, y).
+  , ball2Vel :: (Float, Float) -- ^ Brzina druge lopte (x, y).
   , player1 :: GameObject      -- ^ Prvi igrac
   , player2 :: GameObject      -- ^ Drugi igrac
   , player1Left :: Bool        -- ^ Kretanje prvog igraca u levo.
@@ -29,59 +23,15 @@ data PongoutGame = Game
   , player2Left :: Bool        -- ^ Kretanje drugog igraca u levo.
   , player2Right :: Bool       -- ^ Kretanje drugog igraca u desno.
   , bricksArray :: [Brick]     -- ^ Plocice
+  , level :: Int               -- ^ Nivo
+  , nextLevel :: Bool          -- ^ Indikator da li se prelazi na sledeci nivo 
+  , gameEnd :: Bool            -- ^ Indikator da li je igra zavrsena
   , pause :: Bool              -- ^ Indikator da li je igra pauzirana
   , start :: Bool              -- ^ Indikator da li je igra pokrenuta
   , reset :: Bool              -- ^ Indikator da li je igra resetovana
   , player1Points :: Int       -- ^ Poeni prvog igraca.
   , player2Points :: Int       -- ^ Poeni drugog igraca.
   }
-
-
--- plocice (x_koordinata, y_koordinata, razbijena)
-type Brick = (Float, Float, Bool)
-
-brickX :: Brick -> Float
-brickX (x, _, _) = x
-
-brickY :: Brick -> Float
-brickY (_, y, _) = y
-
-brickDestroyed :: Brick -> Bool
-brickDestroyed (_, _, destroyed) = destroyed
-
-makeBrick :: (Float,Float) -> Brick
-makeBrick (x,y) = (x, y, False)
-
-loadLevel :: Int -> [Brick]
-loadLevel 1 = map makeBrick [((-360), 90), ((-295), 90), ((-230), 90), ((-165), 90), ((-95), 90), ((-35), 90), (35, 90), (100, 90), (165, 90), (230, 90), (295, 90), (360, 90),
-                             ((-260), 45), ((-195), 45), ((-65), 45), (0, 45), (65, 45), (195, 45), (260, 45),
-                             ((-345), 0), ((-280), 0), ((-215), 0), ((-150), 0), (150, 0), (215, 0), (280, 0), (345, 0),
-                             ((-260), (-45)), ((-195), (-45)), ((-65), (-45)), (0, (-45)), (65, (-45)), (195, (-45)), (260, (-45)),
-                             ((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-165), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (100, (-90)), (165, (-90)), (230, (-90)), (295, (-90)), (360, (-90))
-                            ]
-
-loadLevel 2 = map makeBrick [((-360), 90), ((-295), 90), ((-230), 90), ((-145), 90), ((-80), 90), ((-15), 90), (90, 90), (155, 90), (255, 90), (320, 90),
-                             ((-360), 45), ((-145), 45), ((-15), 45), (70, 45), (205, 45), (340, 45),
-                             ((-360), 0), ((-295), 0), ((-230), 0), ((-145), 0), ((-80), 0), ((-15), 0), (90, 0), (320, 0),
-                             ((-360), (-45)), ((-145), (-45)), (130, (-45)), (280, (-45)),
-                             ((-360), (-90)), ((-145), (-90)), (205,(-90))
-                            ] 
-
-loadLevel 3 = map makeBrick [((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-165), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (100, (-90)), (165, (-90)), (230, (-90)), (295, (-90)), (360, (-90)),                            
-                             ((-360), (-45)), ((-200), (-45)), ((-40), (-45)), (120, (-45)), (280, (-45)),
-                             ((-320), 0), ((-240), 0), ((-160), 0), (-80,0), (0,0), (80, 0), (160, 0), (240, 0), (320, 0),
-                             ((-280), 45), ((-120), 45), (40, 45), (200, 45), (360, 45),
-                             ((-360), 90), ((-295), 90), ((-230), 90), ((-165), 90), ((-95), 90), ((-35), 90), (35, 90), (100, 90), (165, 90), (230, 90), (295, 90), (360, 90)
-                            ]
-
-loadLevel 4 = map makeBrick [((-360), (-90)), ((-295), (-90)), ((-230), (-90)), ((-95), (-90)), ((-35), (-90)), (35, (-90)), (165, (-90)), (230, (-90)), (295, (-90)),                            
-                             ((-360), (-45)), ((-295), (-45)), ((-230), (-45)), ((-95), (-45)), ((-35), (-45)), (35, (-45)), (165, (-45)), (230, (-45)), (295, (-45)),                           
-                             ((-360), 0), ((-230), 0), ((-95), 0), (35, 0), (165, 0), (295, 0),                           
-                             ((-360), 45), ((-230), 45), ((-165), 45), ((-95), 45), (35, 45), (100, 45), (165, 45), (295, 45), (360, 45),                            
-                             ((-360), 90), ((-230), 90), ((-165), 90), ((-95), 90), (35, 90), (100, 90), (165, 90), (295, 90), (360, 90)
-                            ]
-                             
-loadLevel _ = []
 
 brickWidth :: Float
 brickWidth = 40
@@ -128,8 +78,31 @@ menuHeight = 350
 menuWidth :: Float
 menuWidth = 650
 
-backgroundImage :: GameObject
-backgroundImage  = createGameObject (0, 0) (900, 900) ("images/background.png", 1920, 1080) 
+backgroundWidth :: Float
+backgroundWidth = 900
+
+backgroundHeight :: Float
+backgroundHeight = 900
+
+winnerWidth :: Float
+winnerWidth = 500
+
+winnerHeight :: Float
+winnerHeight = 250
+
+backgroundImages :: [GameObject]
+backgroundImages = [ createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background1.png", 1920, 1080),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background2.png", 1920, 1080),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background3.png", 1920, 1080),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background4.png", 1920, 1080),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background.png", 1920, 1080)
+                   ]
+
+winner1 :: GameObject
+winner1 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner1.png", 500, 250)
+
+winner2 :: GameObject
+winner2 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner2.png", 500, 250) 
 
 leftWall :: GameObject
 leftWall = createGameObject (-390, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500) 
@@ -142,6 +115,9 @@ beginMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu1.png",
 
 pauseMenu :: GameObject
 pauseMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu2.png", 650 , 350)
+
+nextLevelImage :: GameObject
+nextLevelImage = createGameObject (0, 105) (550, 90) ("images/nextLevel.png", 550, 90)
 
 noMenu :: GameObject
 noMenu = createGameObject (0,0) (0,0) ("images/menu2.png", 650 , 350)
@@ -167,6 +143,9 @@ initialState = Game
   , player2Left = False
   , player2Right = False
   , bricksArray = loadLevel 1
+  , level = 1
+  , nextLevel = False
+  , gameEnd = False
   , pause = True
   , reset = False
   , start = False
@@ -187,6 +166,9 @@ resetGame game = game
   , player2Left = False
   , player2Right = False
   , bricksArray = loadLevel 1
+  , level = 1
+  , gameEnd = False
+  , nextLevel = False
   , pause = False
   , start = True
   , reset = False 
@@ -199,8 +181,7 @@ update :: Float -> PongoutGame -> PongoutGame
 update seconds currentGame = if (reset currentGame) then 
                                 resetGame currentGame
                               else if (not $ pause currentGame) then 
-                              -- dodati checkVictory
-                                (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ moveBalls seconds currentGame)
+                                (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ checkPoints $ moveBalls seconds currentGame)
                               else currentGame
 
 
@@ -214,13 +195,16 @@ render game =
             walls,
             players,
             menu,
+            nextLevelPicture,
             pointsRectangle 300 350,
             pointsText ("Points: " ++ (show $ player1Points game)) 305 (-305),
             pointsRectangle (-295) 355,
-            pointsText ("Points: " ++ (show $ player2Points game)) 310 290]
+            pointsText ("Points: " ++ (show $ player2Points game)) 310 290,
+            winner
+            ]
   where
     -- Pozadina.
-    backgroundPicture = pictures [drawGameObject backgroundImage]
+    backgroundPicture = pictures [drawGameObject (backgroundImages !! ((level game)-1))]
 
     -- Plocice
     brickPicture :: GameObject -> Picture
@@ -252,12 +236,17 @@ render game =
     menuPicture :: GameObject -> Picture
     menuPicture obj = drawGameObject obj
 
-    menu = if (pause game) then 
+    menu = if ((pause game) && (not (gameEnd game))) then 
                (if (start game) then 
                   (pictures [menuPicture pauseMenu])
                else (pictures [menuPicture beginMenu]))
            else (pictures [menuPicture noMenu])
 
+    -- Sledeci nivo
+    nextLevelPicture = if ((nextLevel game) && (not (gameEnd game))) then
+                    pictures [drawGameObject nextLevelImage]
+                else
+                    pictures [drawGameObject noMenu]
     -- Poeni.
     -- Prikaz poena
     pointsRectangle :: Float -> Float -> Picture
@@ -276,21 +265,28 @@ render game =
 
     pointsTextColor = white
 
+    -- Prikaz pobednika
+    winner = if (gameEnd game) then 
+                (if ((player1Points game) > (player2Points game)) then 
+                    (pictures [drawGameObject winner1]) 
+                else (pictures [drawGameObject winner2])) 
+             else (pictures [drawGameObject noMenu])
 
--- | Provera da li je neki od igraca pobedio.
--- checkVictory :: PongoutGame -> PongoutGame 
--- checkVictory game = game {} 
---   where
---     player1Wins = if (player1Points game) >= 600
---                     then True
---                   else False
+-- Provera da li je potrebno promeniti nivo
+changeLevel :: PongoutGame -> Bool
+changeLevel game = if ((maxPoints `div` 1000) + 1) > (level game) then True else False
+    where
+        maxPoints = if ((player1Points game) > (player2Points game)) then (player1Points game) else (player2Points game)
 
---     player2Wins = if (player2Points game) >= 600
---                     then True
---                   else False
-
---     -- Prelazak na sledeci nivo.
-
+-- Promena nivoa
+checkPoints :: PongoutGame -> PongoutGame
+checkPoints game = game {level = level', pause = pause', bricksArray = bricksArray', nextLevel = nextLevel', gameEnd = gameEnd' }
+    where 
+        level' = if (changeLevel game) then (((level) game) + 1) else (level game)
+        pause' = if (changeLevel game) then True else False
+        bricksArray' = if (changeLevel game) then (loadLevel level') else (bricksArray game)
+        nextLevel' = if (changeLevel game) then True else False
+        gameEnd' = if (level' > 4) then True else False
 
 -- | Kretanje lopte.
 moveBalls :: Float        -- ^ Broj sekundi od proslog azuriranja pozicije.
@@ -606,10 +602,10 @@ handleKeys (EventKey (Char 'd') Down _ _) game = game { player2Right = True }
 handleKeys (EventKey (Char 'a') Up _ _) game = game { player2Left = False }
 handleKeys (EventKey (Char 'd') Up _ _) game = game { player2Right = False }
 -- Pauziranje igre 'p'
-handleKeys (EventKey (Char 'p') Down _ _) game = if (start game) then (game { pause = not (pause game) }) else game
+handleKeys (EventKey (Char 'p') Down _ _) game = if (start game && (not (gameEnd game))) then (game { pause = not (pause game), nextLevel = False }) else game
 handleKeys (EventKey (Char 'p') Up _ _) game = game
 -- Pokretanje igre 'n'
-handleKeys (EventKey (Char 'n') Down _ _) game = if (pause game) then (game { reset = True, start = True, pause = False }) else game
+handleKeys (EventKey (Char 'n') Down _ _) game = if (pause game) then (game { reset = True, start = True, pause = False, nextLevel = False }) else game
 handleKeys (EventKey (Char 'n') Up _ _) game = game
 -- Default
 handleKeys _ game = game

@@ -274,7 +274,7 @@ render game =
 
 -- Provera da li je potrebno promeniti nivo
 changeLevel :: PongoutGame -> Bool
-changeLevel game = if ((maxPoints `div` 100) + 1) > (level game) then True else False
+changeLevel game = if ((maxPoints `div` 1000) + 1) > (level game) then True else False
     where
         maxPoints = if ((player1Points game) > (player2Points game)) then (player1Points game) else (player2Points game)
 

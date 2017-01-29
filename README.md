@@ -1,3 +1,5 @@
+# **PONGOUT**
+
 Ovaj repozitorijum predstavlja projekat iz predmeta Funkcionalno programiranje, na Matematičkom fakultetu, školska 2016/17.
 
 Projekat se sastoji od definicije tipa GameObject, koji sadrži osnovne elemente logike igre, koji je radio tim od 4 člana. I 

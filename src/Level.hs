@@ -1,5 +1,5 @@
 module Level
-( Brick
+(  Brick
  , brickX
  , brickY
  , brickDestroyed
@@ -51,3 +51,4 @@ loadLevel 4 = map makeBrick [((-360), (-90)), ((-295), (-90)), ((-230), (-90)), 
                             ]
                                 
 loadLevel _ = []
+

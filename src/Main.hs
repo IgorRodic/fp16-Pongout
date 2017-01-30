@@ -11,6 +11,45 @@ import Data.Maybe
 type Radius = Float 
 type Position = (Float, Float)
 
+
+
+type Bonus = (GameObject, Bool, String)
+
+-- Funkcije za bonuse
+bonusGetObject :: Bonus -> GameObject
+bonusGetObject (obj, _, _) = obj
+
+bonusDestroyed :: Bonus -> Bool
+bonusDestroyed (_, destroyed, _) = destroyed
+
+bonusGetName :: Bonus -> String
+bonusGetName (_, _, name) = name
+
+bonusDestroy :: Bonus -> Bonus
+bonusDestroy (obj, destroyed, name) = (obj, True, name)
+
+bonusWidth :: Float
+bonusWidth = 30
+
+bonusHeight :: Float 
+bonusHeight = 30
+
+createBonus :: (Float, Float, String) -> Bonus
+createBonus (x, y, bonusName) = (obj, False, bonusName)
+    where obj = createGameObject (x, y) (bonusWidth, bonusHeight) ("images/bonus.png", 256, 256)
+
+-- Ucitavanje bonusa za nivoe
+loadBonus :: Int -> [Bonus]
+loadBonus 1 = map createBonus [(0, 0, "swap"), ((-130), 45, "50"), (130, 45, "-50"), (130, (-45), "100"), ((-130), (-45), "-100")]
+
+loadBonus 2 = map createBonus [(205, (-45), "swap"), (135, 45, "50"), (275, 45, "-50"), (245, 0, "100"), (165, 0, "-100")]
+
+loadBonus 3 = map createBonus [((-280), (-45), "swap"), (200, (-45), "50"), ((-360), 45, "-50"), ((-40), 45, "100"), (280, 45, "-100")]
+
+loadBonus 4 = map createBonus [((-295), 0, "swap"), (100, 0, "50"), ((-35), 0, "-50"), ((-165), 0, "100"), (230, 0, "-100")]
+
+loadBonus _ = []
+
 data PongoutGame = Game
   { ball1 :: GameObject        -- ^ Prva lopta
   , ball2 :: GameObject        -- ^ Druga lopta
@@ -25,6 +64,10 @@ data PongoutGame = Game
   , player2Left :: Bool        -- ^ Kretanje drugog igraca u levo.
   , player2Right :: Bool       -- ^ Kretanje drugog igraca u desno.
   , bricksArray :: [Brick]     -- ^ Plocice
+  , bonuses :: [Bonus]         -- ^ Bonusi
+  , ballSwapped  :: Bool       -- ^ Indikator da li su zamenjene strane lopticama (posledica jednog od bonusa)
+  , activeBonus :: String      -- ^ Aktiviran bonus
+  , activeBonusTimer :: Int    -- ^ Indikator prikaza informacije o bonusu
   , level :: Int               -- ^ Nivo
   , nextLevel :: Bool          -- ^ Indikator da li se prelazi na sledeci nivo 
   , gameEnd :: Bool            -- ^ Indikator da li je igra zavrsena
@@ -128,10 +171,17 @@ noMenu = createGameObject (0, 0) (0, 0) ("images/menu2.png", 0, 0)
 createBrick :: Brick -> GameObject
 createBrick brick = createGameObject ((brickX brick), (brickY brick)) (brickWidth, brickHeight) ("images/brick.png", 304, 122)
 
+displayBonus :: GameObject
+displayBonus = createGameObject (340, 0) (100, 50) ("images/displayBonus.png", 100, 50)
+
 createBricksObjects :: [Brick] -> [GameObject]
 createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
                           where
                              notDestroyed = filter (\x -> not (brickDestroyed x)) bricks
+
+getUndestroyedBonuses :: [Bonus] -> [Bonus]
+getUndestroyedBonuses bonuses = filter (\x -> (not (bonusDestroyed x))) bonuses
+
 
 initialState :: PongoutGame
 initialState = Game
@@ -148,6 +198,10 @@ initialState = Game
   , player2Left = False
   , player2Right = False
   , bricksArray = loadLevel 1
+  , bonuses = loadBonus 1
+  , ballSwapped = False
+  , activeBonus = ""
+  , activeBonusTimer = 0
   , level = 1
   , nextLevel = False
   , gameEnd = False
@@ -173,6 +227,10 @@ resetGame game = game
   , player2Left = False
   , player2Right = False
   , bricksArray = loadLevel 1
+  , bonuses = loadBonus 1
+  , ballSwapped = False
+  , activeBonus = ""
+  , activeBonusTimer = 0
   , level = 1
   , gameEnd = False
   , nextLevel = False
@@ -188,7 +246,7 @@ update :: Float -> PongoutGame -> PongoutGame
 update seconds currentGame = if (reset currentGame) then 
                                 resetGame currentGame
                               else if (not $ Main.pause currentGame) then 
-                                (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ checkPoints $ moveBalls seconds currentGame)
+                                (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ bonusBounce $ checkPoints $ moveBalls seconds currentGame)
                               else currentGame
 
 
@@ -198,6 +256,9 @@ render :: PongoutGame -- ^ Stanje igre.
 render game =
   pictures [backgroundPicture,
             bricks,
+            bonusesPictures,
+            displayBonusPicture,
+            displayBonusText,
             balls,
             walls,
             players,
@@ -220,6 +281,17 @@ render game =
     bricksObj = createBricksObjects (bricksArray game)
 
     bricks = Pictures (foldr (\x acc -> [(brickPicture x)] ++ acc) [Blank] bricksObj)
+
+    -- Bonusi
+    bonusPicture :: GameObject -> Picture
+    bonusPicture obj = drawGameObject obj
+
+    undestroyedBonuses = getUndestroyedBonuses (bonuses game)
+    bonusesPictures = Pictures (foldr (\x acc -> [(bonusPicture (bonusGetObject x))] ++ acc) [Blank] undestroyedBonuses)
+
+    -- Prikaz aktivnog bonusa
+    displayBonusPicture = if ((activeBonusTimer game) > 0) then (drawGameObject displayBonus) else (Pictures [Blank])
+    displayBonusText = if ((activeBonusTimer game) > 0) then (bonusText (activeBonus game)) else (Pictures [Blank])
  
     --  Lopta.
     ballPicture :: GameObject -> Picture
@@ -272,6 +344,14 @@ render game =
 
     pointsTextColor = white
 
+    bonusText :: String -> Picture
+    bonusText tekst = translate 315 (-15) $
+                      color bonusTextColor $
+                      scale 0.15 0.15 $
+                      text tekst
+
+    bonusTextColor = white
+
     -- Prikaz pobednika
     winner = if (gameEnd game) then 
                 (if ((player1Points game) > (player2Points game)) then 
@@ -295,11 +375,16 @@ checkPoints game = game { level = level',
                           ball1 = newBall1,
                           ball2 = newBall2,
                           ball1Vel = newBall1Vel,
-                          ball2Vel = newBall2Vel }
+                          ball2Vel = newBall2Vel,
+                          bonuses = bonuses',
+                          activeBonus = activeBonus',
+                          activeBonusTimer = activeBonusTimer'
+                        }
     where 
         level' = if (changeLevel game) then (((level) game) + 1) else (level game)
         pause' = if (changeLevel game) then True else False
         bricksArray' = if (changeLevel game) then (loadLevel level') else (bricksArray game)
+        bonuses' = if (changeLevel game) then (loadBonus level') else (bonuses game)
         nextLevel' = if (changeLevel game) then True else False
         gameEnd' = if (level' > 4) then True else False
 
@@ -315,6 +400,12 @@ checkPoints game = game { level = level',
         newBall2Vel = if nextLevel'
                         then (0, 100)
                       else (ball2Vel game)
+        activeBonus' = if nextLevel'
+                         then ""
+                       else (activeBonus game)
+        activeBonusTimer' = if nextLevel'
+                              then 0
+                            else (activeBonusTimer game)
 
 
 -- | Kretanje lopte.
@@ -405,7 +496,7 @@ wallBounce game = game { ball1 = newBall1,
     (oldPlayer1Points, oldPlayer2Points) = ((player1Points game), (player2Points game))
 
     vxReset1 = if y1 < -380 || y1 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
-                 then (0, -100)
+                 then (if (not (ballSwapped game)) then (0, (-100)) else (0, 100))
                else (vx1', vy1')
 
     newPlayer1Ponts = if y1 < -380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
@@ -414,12 +505,12 @@ wallBounce game = game { ball1 = newBall1,
                         then 100
                       else 0
     newBall1 = if newPlayer1Ponts /= 0
-                 then resetGameObject (ball1 game) 0 (-120)
+                 then (if (not (ballSwapped game)) then (resetGameObject (ball1 game) 0 (-120)) else (resetGameObject (ball1 game) 0 120)) 
                else
                  (ball1 game)
 
     vxReset2 = if y2 < -380 || y2 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
-                 then (0, 100)
+                 then (if (not (ballSwapped game)) then (0, 100) else (0, (-100)))
                else (vx2', vy2')
 
     newPlayer2Ponts = if y2 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
@@ -428,9 +519,113 @@ wallBounce game = game { ball1 = newBall1,
                         then 100
                       else 0
     newBall2 = if newPlayer2Ponts /= 0
-                 then resetGameObject (ball2 game) 0 120
+                 then (if (not (ballSwapped game)) then (resetGameObject (ball2 game) 0 120) else (resetGameObject (ball2 game) 0 (-120)))
                else
                  (ball2 game)
+
+inCollisionWithBonus :: GameObject -> GameObject -> Bool
+inCollisionWithBonus ball bonus = if ((getCollisionType (detectCollision ball bonus)) /= NoCollision)
+                                    then True
+                                  else False 
+
+getBonusPoint :: Bonus -> Int
+getBonusPoint bonus = if ((bonusGetName bonus) == "swap") 
+                        then 0 
+                      else (read (bonusGetName bonus) :: Int)
+
+-- Obradjivanje kolizije sa bonusima
+bonusBounce :: PongoutGame -> PongoutGame
+bonusBounce game = game { player1Points = player1Points',
+                          player2Points = player2Points',
+                          bonuses = bonuses',
+                          ball1 = ball1',
+                          ball2 = ball2',
+                          ballSwapped = ballSwapped',
+                          ball1Vel = ball1Vel',
+                          ball2Vel = ball2Vel',
+                          activeBonus = activeBonus',
+                          activeBonusTimer = activeBonusTimer'
+                        }
+  where
+    undestroyedBonuses = getUndestroyedBonuses (bonuses game)
+    player1Bonuses = filter (\b -> inCollisionWithBonus (ball1 game) (bonusGetObject b)) undestroyedBonuses
+    player2Bonuses = filter (\b -> inCollisionWithBonus (ball2 game) (bonusGetObject b)) undestroyedBonuses
+
+    -- detekcija da li je bonus zamena loptica
+    (x1, y1) = getGameObjectCoordinates (ball1 game)
+    (x2, y2) = getGameObjectCoordinates (ball2 game)
+
+    needSwapPlayer1 = if (not (null player1Bonuses)) 
+                        then (if ((getBonusPoint (head player1Bonuses)) == 0) 
+                                then True 
+                              else False) 
+                      else False
+
+    needSwapPlayer2 = if (not (null player2Bonuses)) 
+                        then (if ((getBonusPoint (head player2Bonuses)) == 0) 
+                                then True 
+                              else False) 
+                      else False
+
+    needSwap = needSwapPlayer1 || needSwapPlayer2
+
+    ballSwapped' = if (needSwap) 
+                     then True 
+                   else (ballSwapped game)
+
+    ball1' = if (needSwap) 
+               then (resetGameObject (ball1 game) x2 y2) 
+             else (ball1 game)
+    ball2' = if (needSwap) 
+               then (resetGameObject (ball2 game) x1 y1) 
+             else (ball2 game)   
+    
+    ball1Vel' = if (needSwap) 
+                  then (ball2Vel game) 
+                else (ball1Vel game)
+    ball2Vel' = if (needSwap) 
+                  then (ball1Vel game) 
+                else (ball2Vel game)
+
+    player1Points' = (player1Points game) + (if ((not (null player1Bonuses)) && (not needSwap)) 
+                                               then (getBonusPoint (head player1Bonuses)) 
+                                             else 0)
+    player2Points' = (player2Points game) + (if ((not (null player2Bonuses)) && (not needSwap)) 
+                                               then (getBonusPoint (head player2Bonuses)) 
+                                             else 0)
+
+    player1BonusString = if (not (null player1Bonuses)) 
+                           then (bonusGetName (head player1Bonuses)) 
+                         else ""
+    player2BonusString = if (not (null player2Bonuses)) 
+                           then (bonusGetName (head player2Bonuses)) 
+                         else ""
+    
+    bonuses'' =  if(not (null player1Bonuses))
+                   then (map (\x -> if((bonusGetName x) == player1BonusString) 
+                                      then (bonusDestroy x) 
+                                    else x) (bonuses game))
+                 else (bonuses game)
+
+    bonuses' =  if(not (null player2Bonuses))
+                  then (map (\x -> if((bonusGetName x) == player2BonusString) 
+                                     then (bonusDestroy x) 
+                                   else x) bonuses'')
+                else bonuses''
+
+    activeBonus'' = if (not (null player1Bonuses))
+                      then player1BonusString
+                    else (activeBonus game)
+
+    activeBonus' = if (not (null player2Bonuses))
+                     then player2BonusString
+                   else activeBonus''
+
+    activeBonusTimer' = if ((not (null player1Bonuses)) || (not (null player2Bonuses)))
+                          then 200
+                        else if ((activeBonusTimer game) > 0) 
+                               then ((activeBonusTimer game)-1) 
+                             else (activeBonusTimer game)
 
 
 -- | Obradjivanje kolizije sa plocicama.

@@ -11,22 +11,29 @@ import Data.Maybe
 type Radius = Float 
 type Position = (Float, Float)
 
-
-
-type Bonus = (GameObject, Bool, String)
+type Bonus = (GameObject, Bool, String, GameObject, Int)
 
 -- Funkcije za bonuse
 bonusGetObject :: Bonus -> GameObject
-bonusGetObject (obj, _, _) = obj
+bonusGetObject (obj, _, _, _, _) = obj
 
 bonusDestroyed :: Bonus -> Bool
-bonusDestroyed (_, destroyed, _) = destroyed
+bonusDestroyed (_, destroyed, _, _, _) = destroyed
 
 bonusGetName :: Bonus -> String
-bonusGetName (_, _, name) = name
+bonusGetName (_, _, name, _, _) = name
+
+bonusGetActivePic :: Bonus -> Picture
+bonusGetActivePic (_, _, _, activePicture, timer) = if (timer > 0) then (drawGameObject activePicture) else (Pictures [Blank])
+
+bonusGetTimer :: Bonus -> Int
+bonusGetTimer (_, _, _, _, timer) = timer
 
 bonusDestroy :: Bonus -> Bonus
-bonusDestroy (obj, destroyed, name) = (obj, True, name)
+bonusDestroy (obj, destroyed, name, activePicture, timer) = (obj, True, name, activePicture, 200)
+
+decreaseTimer :: Bonus -> Bonus
+decreaseTimer (obj, destroyed, name, activePicture, timer) = (obj, destroyed, name, activePicture, (timer-1))
 
 bonusWidth :: Float
 bonusWidth = 30
@@ -34,9 +41,35 @@ bonusWidth = 30
 bonusHeight :: Float 
 bonusHeight = 30
 
+-- objekti za skoro aktivirane bonuse
+swapObject :: GameObject
+swapObject = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/swap.png", 250, 250)
+
+plus50Object :: GameObject
+plus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus50.png", 250, 250)
+
+minus50Object :: GameObject
+minus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus50.png", 250, 250)
+
+plus100Object :: GameObject
+plus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus100.png", 250, 250)
+
+minus100Object :: GameObject
+minus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus100.png", 250, 250)
+
 createBonus :: (Float, Float, String) -> Bonus
-createBonus (x, y, bonusName) = (obj, False, bonusName)
+createBonus (x, y, bonusName) = (obj, False, bonusName, picture, 0)
     where obj = createGameObject (x, y) (bonusWidth, bonusHeight) ("images/bonus.png", 256, 256)
+          picture = if (bonusName == "swap")
+                      then (resetGameObject swapObject x y)
+                    else if (bonusName == "50")
+                      then (resetGameObject plus50Object x y)
+                    else if (bonusName == "-50")
+                      then (resetGameObject minus50Object x y)
+                    else if (bonusName == "100")
+                      then (resetGameObject plus100Object x y)
+                    else 
+                      (resetGameObject minus100Object x y)
 
 -- Ucitavanje bonusa za nivoe
 loadBonus :: Int -> [Bonus]
@@ -66,8 +99,6 @@ data PongoutGame = Game
   , bricksArray :: [Brick]     -- ^ Plocice
   , bonuses :: [Bonus]         -- ^ Bonusi
   , ballSwapped  :: Bool       -- ^ Indikator da li su zamenjene strane lopticama (posledica jednog od bonusa)
-  , activeBonus :: String      -- ^ Aktiviran bonus
-  , activeBonusTimer :: Int    -- ^ Indikator prikaza informacije o bonusu
   , level :: Int               -- ^ Nivo
   , nextLevel :: Bool          -- ^ Indikator da li se prelazi na sledeci nivo 
   , gameEnd :: Bool            -- ^ Indikator da li je igra zavrsena
@@ -171,9 +202,6 @@ noMenu = createGameObject (0, 0) (0, 0) ("images/menu2.png", 0, 0)
 createBrick :: Brick -> GameObject
 createBrick brick = createGameObject ((brickX brick), (brickY brick)) (brickWidth, brickHeight) ("images/brick.png", 304, 122)
 
-displayBonus :: GameObject
-displayBonus = createGameObject (340, 0) (100, 50) ("images/displayBonus.png", 100, 50)
-
 createBricksObjects :: [Brick] -> [GameObject]
 createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
                           where
@@ -200,8 +228,6 @@ initialState = Game
   , bricksArray = loadLevel 1
   , bonuses = loadBonus 1
   , ballSwapped = False
-  , activeBonus = ""
-  , activeBonusTimer = 0
   , level = 1
   , nextLevel = False
   , gameEnd = False
@@ -229,8 +255,6 @@ resetGame game = game
   , bricksArray = loadLevel 1
   , bonuses = loadBonus 1
   , ballSwapped = False
-  , activeBonus = ""
-  , activeBonusTimer = 0
   , level = 1
   , gameEnd = False
   , nextLevel = False
@@ -257,8 +281,7 @@ render game =
   pictures [backgroundPicture,
             bricks,
             bonusesPictures,
-            displayBonusPicture,
-            displayBonusText,
+            activeBonusesPictures,
             balls,
             walls,
             players,
@@ -289,9 +312,8 @@ render game =
     undestroyedBonuses = getUndestroyedBonuses (bonuses game)
     bonusesPictures = Pictures (foldr (\x acc -> [(bonusPicture (bonusGetObject x))] ++ acc) [Blank] undestroyedBonuses)
 
-    -- Prikaz aktivnog bonusa
-    displayBonusPicture = if ((activeBonusTimer game) > 0) then (drawGameObject displayBonus) else (Pictures [Blank])
-    displayBonusText = if ((activeBonusTimer game) > 0) then (bonusText (activeBonus game)) else (Pictures [Blank])
+    activeBonuses = filter (\x -> ((bonusGetTimer x) > 0)) (bonuses game)
+    activeBonusesPictures = Pictures (foldr (\x acc -> [(bonusGetActivePic x)] ++ acc) [Blank] activeBonuses)
  
     --  Lopta.
     ballPicture :: GameObject -> Picture
@@ -344,14 +366,6 @@ render game =
 
     pointsTextColor = white
 
-    bonusText :: String -> Picture
-    bonusText tekst = translate 315 (-15) $
-                      color bonusTextColor $
-                      scale 0.15 0.15 $
-                      text tekst
-
-    bonusTextColor = white
-
     -- Prikaz pobednika
     winner = if (gameEnd game) then 
                 (if ((player1Points game) > (player2Points game)) then 
@@ -376,9 +390,7 @@ checkPoints game = game { level = level',
                           ball2 = newBall2,
                           ball1Vel = newBall1Vel,
                           ball2Vel = newBall2Vel,
-                          bonuses = bonuses',
-                          activeBonus = activeBonus',
-                          activeBonusTimer = activeBonusTimer'
+                          bonuses = bonuses'
                         }
     where 
         level' = if (changeLevel game) then (((level) game) + 1) else (level game)
@@ -400,12 +412,6 @@ checkPoints game = game { level = level',
         newBall2Vel = if nextLevel'
                         then (0, 100)
                       else (ball2Vel game)
-        activeBonus' = if nextLevel'
-                         then ""
-                       else (activeBonus game)
-        activeBonusTimer' = if nextLevel'
-                              then 0
-                            else (activeBonusTimer game)
 
 
 -- | Kretanje lopte.
@@ -542,9 +548,7 @@ bonusBounce game = game { player1Points = player1Points',
                           ball2 = ball2',
                           ballSwapped = ballSwapped',
                           ball1Vel = ball1Vel',
-                          ball2Vel = ball2Vel',
-                          activeBonus = activeBonus',
-                          activeBonusTimer = activeBonusTimer'
+                          ball2Vel = ball2Vel'
                         }
   where
     undestroyedBonuses = getUndestroyedBonuses (bonuses game)
@@ -607,26 +611,16 @@ bonusBounce game = game { player1Points = player1Points',
                                     else x) (bonuses game))
                  else (bonuses game)
 
-    bonuses' =  if(not (null player2Bonuses))
+    bonuses''' =  if(not (null player2Bonuses))
                   then (map (\x -> if((bonusGetName x) == player2BonusString) 
                                      then (bonusDestroy x) 
                                    else x) bonuses'')
                 else bonuses''
 
-    activeBonus'' = if (not (null player1Bonuses))
-                      then player1BonusString
-                    else (activeBonus game)
-
-    activeBonus' = if (not (null player2Bonuses))
-                     then player2BonusString
-                   else activeBonus''
-
-    activeBonusTimer' = if ((not (null player1Bonuses)) || (not (null player2Bonuses)))
-                          then 200
-                        else if ((activeBonusTimer game) > 0) 
-                               then ((activeBonusTimer game)-1) 
-                             else (activeBonusTimer game)
-
+    bonuses' = map (\x -> if((bonusGetTimer x) > 0)
+                            then (decreaseTimer x)
+                          else x) bonuses'''
+    
 
 -- | Obradjivanje kolizije sa plocicama.
 bricksBounce :: PongoutGame -> PongoutGame

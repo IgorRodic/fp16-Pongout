@@ -175,6 +175,9 @@ backgroundImages = [
                      createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background.png", 2000, 2000)
                    ]
 
+gameTitle :: GameObject
+gameTitle = createGameObject (-260, -310) (250, 50) ("images/gameTitle.png", 250, 49)
+
 winner1 :: GameObject
 winner1 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner1.png", 500, 250)
 
@@ -279,6 +282,7 @@ render :: PongoutGame -- ^ Stanje igre.
        -> Picture     -- ^ Slika stanja igre.
 render game =
   pictures [backgroundPicture,
+            gameTitlePicture,
             bricks,
             bonusesPictures,
             activeBonusesPictures,
@@ -296,6 +300,9 @@ render game =
   where
     -- Pozadina.
     backgroundPicture = pictures [drawGameObject (backgroundImages !! ((level game)-1))]
+
+    -- Naslov igre
+    gameTitlePicture = pictures [drawGameObject gameTitle]
 
     -- Plocice
     brickPicture :: GameObject -> Picture

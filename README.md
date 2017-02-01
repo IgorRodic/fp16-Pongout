@@ -5,5 +5,5 @@ Ovaj repozitorijum predstavlja projekat iz predmeta Funkcionalno programiranje, 
 Projekat se sastoji od definicije tipa GameObject, koji sadrži osnovne elemente logike igre, koji je radio tim od 4 člana. I 
 same igre koju je zatim na osnovu tipa GameObject radio dvočlani tim.
 
-Sama igra nazvana je Pongout jer je pravljena po uzoru na igre Pong i Breakout, koje su bile popularne 70-ih godina prošlog veka. 
+Igra je nazvana Pongout jer je pravljena po uzoru na igre Pong i Breakout, koje su bile popularne 70-ih godina prošlog veka. 
 Igra kombinuje koncepte ove dve igre, ali i dodaje neke nove.

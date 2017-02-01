@@ -508,13 +508,13 @@ wallBounce game = game { ball1 = newBall1,
     (x2, y2) = getGameObjectCoordinates (ball2 game)
     (oldPlayer1Points, oldPlayer2Points) = ((player1Points game), (player2Points game))
 
-    vxReset1 = if y1 < -380 || y1 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+    vxReset1 = if y1 < -375 || y1 > 375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                  then (if (not (ballSwapped game)) then (0, (-100)) else (0, 100))
                else (vx1', vy1')
 
-    newPlayer1Ponts = if y1 < -380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+    newPlayer1Ponts = if y1 < -375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                         then -30
-                      else if y1 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+                      else if y1 > 375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                         then 100
                       else 0
     newBall1 = if newPlayer1Ponts /= 0
@@ -522,13 +522,13 @@ wallBounce game = game { ball1 = newBall1,
                else
                  (ball1 game)
 
-    vxReset2 = if y2 < -380 || y2 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+    vxReset2 = if y2 < -375 || y2 > 375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                  then (if (not (ballSwapped game)) then (0, 100) else (0, (-100)))
                else (vx2', vy2')
 
-    newPlayer2Ponts = if y2 > 380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+    newPlayer2Ponts = if y2 > 375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                         then -30
-                      else if y2 < -380 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
+                      else if y2 < -375 || collisionTypeLeftWall1 == LeftCollision || collisionTypeRightWall2 == RightCollision
                         then 100
                       else 0
     newBall2 = if newPlayer2Ponts /= 0
@@ -903,9 +903,13 @@ handleKeys (EventKey (Char 'd') Up _ _) game = game { player2Right = False }
 -- Pauziranje igre 'p'
 handleKeys (EventKey (Char 'p') Down _ _) game = if (start game && (not (gameEnd game))) then (game { Main.pause = not (Main.pause game), nextLevel = False }) else game
 handleKeys (EventKey (Char 'p') Up _ _) game = game
+handleKeys (EventKey (Char 'P') Down _ _) game = if (start game && (not (gameEnd game))) then (game { Main.pause = not (Main.pause game), nextLevel = False }) else game
+handleKeys (EventKey (Char 'P') Up _ _) game = game
 -- Pokretanje igre 'n'
 handleKeys (EventKey (Char 'n') Down _ _) game = if (Main.pause game) then (game { reset = True, start = True, Main.pause = False, nextLevel = False }) else game
 handleKeys (EventKey (Char 'n') Up _ _) game = game
+handleKeys (EventKey (Char 'N') Down _ _) game = if (Main.pause game) then (game { reset = True, start = True, Main.pause = False, nextLevel = False }) else game
+handleKeys (EventKey (Char 'N') Up _ _) game = game
 -- Default
 handleKeys _ game = game
 

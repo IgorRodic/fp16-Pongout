@@ -6,4 +6,4 @@ Projekat se sastoji od definicije tipa GameObject, koji sadrži osnovne elemente
 same igre koju je zatim na osnovu tipa GameObject radio dvočlani tim.
 
 Igra je nazvana Pongout jer je pravljena po uzoru na igre Pong i Breakout, koje su bile popularne 70-ih godina prošlog veka. 
-Igra kombinuje koncepte ove dve igre, ali i dodaje neke nove.
+Ona kombinuje koncepte ove dve igre, ali i dodaje neke nove.

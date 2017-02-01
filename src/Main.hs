@@ -176,7 +176,7 @@ backgroundImages = [
                    ]
 
 gameTitle :: GameObject
-gameTitle = createGameObject (-260, -310) (250, 50) ("images/gameTitle.png", 250, 49)
+gameTitle = createGameObject (-260, -310) (250, 50) ("images/gameTitleBlack.png", 250, 49)
 
 winner1 :: GameObject
 winner1 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner1.png", 500, 250)

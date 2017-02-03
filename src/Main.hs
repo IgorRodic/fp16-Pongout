@@ -131,7 +131,7 @@ background :: Color
 background = white
 
 fps :: Int
-fps = 120
+fps = 60
 
 ballRadius :: Float
 ballRadius = 20
@@ -454,16 +454,16 @@ movePlayer game = game { player1 = newPlayer1, player2 = newPlayer2 }
     dHeld = player2Right game
 
     -- Izracunavanje pomeraja igraca.
-    player1Step = if (player1X > -60 + fromIntegral windowSizeWidth / 2) then -4
-                  else if (player1X < 60 -fromIntegral windowSizeWidth / 2) then 4 
-                  else if leftArrowHeld == True then -4
-                  else if rightArrowHeld then 4 
+    player1Step = if (player1X > -60 + fromIntegral windowSizeWidth / 2) then -8
+                  else if (player1X < 60 -fromIntegral windowSizeWidth / 2) then 8 
+                  else if leftArrowHeld == True then -8
+                  else if rightArrowHeld then 8 
                   else 0
 
-    player2Step = if (player2X > -60 + fromIntegral windowSizeWidth / 2) then -4
-                  else if (player2X < 60 -fromIntegral windowSizeWidth / 2) then 4 
-                  else if aHeld == True then -4 
-                  else if dHeld then 4 
+    player2Step = if (player2X > -60 + fromIntegral windowSizeWidth / 2) then -8
+                  else if (player2X < 60 -fromIntegral windowSizeWidth / 2) then 8 
+                  else if aHeld == True then -8 
+                  else if dHeld then 8 
                   else 0
 
     newPlayer1 = moveGameObject (player1 game) player1Step 0

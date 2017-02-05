@@ -2,6 +2,7 @@ module Main where
 
 import GameObject
 import Level
+import Constants
 import Graphics.Gloss
 import Graphics.Gloss.Interface.Pure.Game as Game
 import Graphics.Gloss.Interface.Pure.Simulate
@@ -10,78 +11,7 @@ import Data.Maybe
 
 type Radius = Float 
 type Position = (Float, Float)
-
 type Bonus = (GameObject, Bool, String, GameObject, Int)
-
--- Funkcije za bonuse
-bonusGetObject :: Bonus -> GameObject
-bonusGetObject (obj, _, _, _, _) = obj
-
-bonusDestroyed :: Bonus -> Bool
-bonusDestroyed (_, destroyed, _, _, _) = destroyed
-
-bonusGetName :: Bonus -> String
-bonusGetName (_, _, name, _, _) = name
-
-bonusGetActivePic :: Bonus -> Picture
-bonusGetActivePic (_, _, _, activePicture, timer) = if (timer > 0) then (drawGameObject activePicture) else (Pictures [Blank])
-
-bonusGetTimer :: Bonus -> Int
-bonusGetTimer (_, _, _, _, timer) = timer
-
-bonusDestroy :: Bonus -> Bonus
-bonusDestroy (obj, destroyed, name, activePicture, timer) = (obj, True, name, activePicture, 200)
-
-decreaseTimer :: Bonus -> Bonus
-decreaseTimer (obj, destroyed, name, activePicture, timer) = (obj, destroyed, name, activePicture, (timer-1))
-
-bonusWidth :: Float
-bonusWidth = 30
-
-bonusHeight :: Float 
-bonusHeight = 30
-
--- objekti za skoro aktivirane bonuse
-swapObject :: GameObject
-swapObject = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/swap.png", 250, 250)
-
-plus50Object :: GameObject
-plus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus50.png", 250, 250)
-
-minus50Object :: GameObject
-minus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus50.png", 250, 250)
-
-plus100Object :: GameObject
-plus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus100.png", 250, 250)
-
-minus100Object :: GameObject
-minus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus100.png", 250, 250)
-
-createBonus :: (Float, Float, String) -> Bonus
-createBonus (x, y, bonusName) = (obj, False, bonusName, picture, 0)
-    where obj = createGameObject (x, y) (bonusWidth, bonusHeight) ("images/bonus.png", 256, 256)
-          picture = if (bonusName == "swap")
-                      then (resetGameObject swapObject x y)
-                    else if (bonusName == "50")
-                      then (resetGameObject plus50Object x y)
-                    else if (bonusName == "-50")
-                      then (resetGameObject minus50Object x y)
-                    else if (bonusName == "100")
-                      then (resetGameObject plus100Object x y)
-                    else 
-                      (resetGameObject minus100Object x y)
-
--- Ucitavanje bonusa za nivoe
-loadBonus :: Int -> [Bonus]
-loadBonus 1 = map createBonus [(0, 0, "swap"), ((-130), 45, "50"), (130, 45, "-50"), (130, (-45), "100"), ((-130), (-45), "-100")]
-
-loadBonus 2 = map createBonus [(205, (-45), "swap"), (135, 45, "50"), (275, 45, "-50"), (245, 0, "100"), (165, 0, "-100")]
-
-loadBonus 3 = map createBonus [((-280), (-45), "swap"), (200, (-45), "50"), ((-360), 45, "-50"), ((-40), 45, "100"), (280, 45, "-100")]
-
-loadBonus 4 = map createBonus [((-295), 0, "swap"), (100, 0, "50"), ((-35), 0, "-50"), ((-165), 0, "100"), (230, 0, "-100")]
-
-loadBonus _ = []
 
 data PongoutGame = Game
   { ball1 :: GameObject        -- ^ Prva lopta
@@ -109,111 +39,6 @@ data PongoutGame = Game
   , player2Points :: Int       -- ^ Poeni drugog igraca.
   }
 
-brickWidth :: Float
-brickWidth = 40
-
-brickHeight :: Float
-brickHeight = 20
-
-windowSizeWidth :: Int
-windowSizeWidth = 800
-
-windowSizeHeight :: Int
-windowSizeHeight = 700
-
-windowOffset :: Int
-windowOffset = 10
-
-window :: Display
-window = InWindow "Pongout" (windowSizeWidth, windowSizeHeight) (windowOffset, windowOffset)
-
-background :: Color
-background = white
-
-fps :: Int
-fps = 60
-
-ballRadius :: Float
-ballRadius = 20
-
-wallHeight :: Float
-wallHeight = 690
-
-wallWidth :: Float
-wallWidth = 20
-
-playerHeight :: Float
-playerHeight = 20
-
-playerWidth :: Float
-playerWidth = 80
-
-menuHeight :: Float
-menuHeight = 350
-
-menuWidth :: Float
-menuWidth = 650
-
-backgroundWidth :: Float
-backgroundWidth = 900
-
-backgroundHeight :: Float
-backgroundHeight = 900
-
-winnerWidth :: Float
-winnerWidth = 500
-
-winnerHeight :: Float
-winnerHeight = 250
-
-backgroundImages :: [GameObject]
-backgroundImages = [ 
-                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background1.png", 1024, 1024),
-                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background2.png", 2048, 2048),
-                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background3.png", 1280, 1280),
-                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background4.png", 2000, 2000),
-                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background.png", 2000, 2000)
-                   ]
-
-gameTitle :: GameObject
-gameTitle = createGameObject (-260, -310) (250, 50) ("images/gameTitleBlack.png", 250, 49)
-
-winner1 :: GameObject
-winner1 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner1.png", 500, 250)
-
-winner2 :: GameObject
-winner2 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner2.png", 500, 250) 
-
-leftWall :: GameObject
-leftWall = createGameObject (-400, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500) 
-
-rightWall :: GameObject
-rightWall = createGameObject (400, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500)
-
-beginMenu :: GameObject
-beginMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu1.png", 650 , 350)
-
-pauseMenu :: GameObject
-pauseMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu2.png", 650 , 350)
-
-nextLevelImage :: GameObject
-nextLevelImage = createGameObject (0, 105) (550, 90) ("images/nextLevel.png", 550, 90)
-
-noMenu :: GameObject
-noMenu = createGameObject (0, 0) (0, 0) ("images/menu2.png", 0, 0)
-
-createBrick :: Brick -> GameObject
-createBrick brick = createGameObject ((brickX brick), (brickY brick)) (brickWidth, brickHeight) ("images/brick.png", 304, 122)
-
-createBricksObjects :: [Brick] -> [GameObject]
-createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
-                          where
-                             notDestroyed = filter (\x -> not (brickDestroyed x)) bricks
-
-getUndestroyedBonuses :: [Bonus] -> [Bonus]
-getUndestroyedBonuses bonuses = filter (\x -> (not (bonusDestroyed x))) bonuses
-
-
 initialState :: PongoutGame
 initialState = Game
   { ball1 = createGameObject (0, -120) (ballRadius, ballRadius) ("images/ball1.png", 581, 604) 
@@ -234,7 +59,7 @@ initialState = Game
   , level = 1
   , nextLevel = False
   , gameEnd = False
-  , Main.pause = True
+  , pause = True
   , reset = False
   , start = False
   , player1Points = 0
@@ -261,18 +86,135 @@ resetGame game = game
   , level = 1
   , gameEnd = False
   , nextLevel = False
-  , Main.pause = False
+  , pause = False
   , start = True
   , reset = False 
   , player1Points = 0
   , player2Points = 0
   }
 
+window :: Display
+window = InWindow "Pongout" (windowSizeWidth, windowSizeHeight) (windowOffset, windowOffset)
+
+background :: Color
+background = white
+
+backgroundImages :: [GameObject]
+backgroundImages = [ 
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background1.png", 1024, 1024),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background2.png", 2048, 2048),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background3.png", 1280, 1280),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background4.png", 2000, 2000),
+                     createGameObject (0, 0) (backgroundWidth, backgroundHeight) ("images/background.png", 2000, 2000)
+                   ]
+
+leftWall :: GameObject
+leftWall = createGameObject (-400, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500) 
+
+rightWall :: GameObject
+rightWall = createGameObject (400, 0) (wallWidth, wallHeight) ("images/wall.png", 1500, 1500)
+
+gameTitle :: GameObject
+gameTitle = createGameObject (-260, -310) (250, 50) ("images/gameTitleBlack.png", 250, 49)
+
+winner1 :: GameObject
+winner1 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner1.png", 500, 250)
+
+winner2 :: GameObject
+winner2 = createGameObject (0, 0) (winnerWidth, winnerHeight) ("images/winner2.png", 500, 250) 
+
+beginMenu :: GameObject
+beginMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu1.png", 650 , 350)
+
+pauseMenu :: GameObject
+pauseMenu = createGameObject (0, 0) (menuWidth, menuHeight) ("images/menu2.png", 650 , 350)
+
+nextLevelImage :: GameObject
+nextLevelImage = createGameObject (0, 105) (550, 90) ("images/nextLevel.png", 550, 90)
+
+noMenu :: GameObject
+noMenu = createGameObject (0, 0) (0, 0) ("images/menu2.png", 0, 0)
+
+-- | Objekti za skoro aktivirane bonuse
+swapObject :: GameObject
+swapObject = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/swap.png", 250, 250)
+
+plus50Object :: GameObject
+plus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus50.png", 250, 250)
+
+minus50Object :: GameObject
+minus50Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus50.png", 250, 250)
+
+plus100Object :: GameObject
+plus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/plus100.png", 250, 250)
+
+minus100Object :: GameObject
+minus100Object = createGameObject (0, 0) (bonusWidth, bonusHeight) ("images/minus100.png", 250, 250)
+
+-- | Funkcije za bonuse
+bonusGetObject :: Bonus -> GameObject
+bonusGetObject (obj, _, _, _, _) = obj
+
+bonusDestroyed :: Bonus -> Bool
+bonusDestroyed (_, destroyed, _, _, _) = destroyed
+
+bonusGetName :: Bonus -> String
+bonusGetName (_, _, name, _, _) = name
+
+bonusGetActivePic :: Bonus -> Picture
+bonusGetActivePic (_, _, _, activePicture, timer) = if (timer > 0) then (drawGameObject activePicture) else (Pictures [Blank])
+
+bonusGetTimer :: Bonus -> Int
+bonusGetTimer (_, _, _, _, timer) = timer
+
+bonusDestroy :: Bonus -> Bonus
+bonusDestroy (obj, destroyed, name, activePicture, timer) = (obj, True, name, activePicture, 200)
+
+decreaseTimer :: Bonus -> Bonus
+decreaseTimer (obj, destroyed, name, activePicture, timer) = (obj, destroyed, name, activePicture, (timer-1))
+
+createBonus :: (Float, Float, String) -> Bonus
+createBonus (x, y, bonusName) = (obj, False, bonusName, picture, 0)
+    where obj = createGameObject (x, y) (bonusWidth, bonusHeight) ("images/bonus.png", 256, 256)
+          picture = if (bonusName == "swap")
+                      then (resetGameObject swapObject x y)
+                    else if (bonusName == "50")
+                      then (resetGameObject plus50Object x y)
+                    else if (bonusName == "-50")
+                      then (resetGameObject minus50Object x y)
+                    else if (bonusName == "100")
+                      then (resetGameObject plus100Object x y)
+                    else 
+                      (resetGameObject minus100Object x y)
+
+-- | Ucitavanje bonusa za nivoe
+loadBonus :: Int -> [Bonus]
+loadBonus 1 = map createBonus [(0, 0, "swap"), ((-130), 45, "50"), (130, 45, "-50"), (130, (-45), "100"), ((-130), (-45), "-100")]
+
+loadBonus 2 = map createBonus [(205, (-45), "swap"), (135, 45, "50"), (275, 45, "-50"), (245, 0, "100"), (165, 0, "-100")]
+
+loadBonus 3 = map createBonus [((-280), (-45), "swap"), (200, (-45), "50"), ((-360), 45, "-50"), ((-40), 45, "100"), (280, 45, "-100")]
+
+loadBonus 4 = map createBonus [((-295), 0, "swap"), (100, 0, "50"), ((-35), 0, "-50"), ((-165), 0, "100"), (230, 0, "-100")]
+
+loadBonus _ = []
+
+createBrick :: Brick -> GameObject
+createBrick brick = createGameObject ((brickX brick), (brickY brick)) (brickWidth, brickHeight) ("images/brick.png", 304, 122)
+
+createBricksObjects :: [Brick] -> [GameObject]
+createBricksObjects bricks = map (\b -> createBrick b) notDestroyed
+                          where
+                             notDestroyed = filter (\x -> not (brickDestroyed x)) bricks
+
+getUndestroyedBonuses :: [Bonus] -> [Bonus]
+getUndestroyedBonuses bonuses = filter (\x -> (not (bonusDestroyed x))) bonuses
+
 -- | Azuriranje stanja igre
 update :: Float -> PongoutGame -> PongoutGame
 update seconds currentGame = if (reset currentGame) then 
                                 resetGame currentGame
-                              else if (not $ Main.pause currentGame) then 
+                              else if (not $ pause currentGame) then 
                                 (paddleBounce $ wallBounce $ bricksBounce $ movePlayer $ bonusBounce $ checkPoints $ moveBalls seconds currentGame)
                               else currentGame
 
@@ -344,7 +286,7 @@ render game =
     menuPicture :: GameObject -> Picture
     menuPicture obj = drawGameObject obj
 
-    menu = if ((Main.pause game) && (not (gameEnd game))) then 
+    menu = if ((pause game) && (not (gameEnd game))) then 
                (if (start game) then 
                   (pictures [menuPicture pauseMenu])
                else (pictures [menuPicture beginMenu]))
@@ -380,16 +322,16 @@ render game =
                 else (pictures [drawGameObject winner2])) 
              else (pictures [drawGameObject noMenu])
 
--- Provera da li je potrebno promeniti nivo
+-- | Provera da li je potrebno promeniti nivo
 changeLevel :: PongoutGame -> Bool
 changeLevel game = if ((maxPoints `div` 1000) + 1) > (level game) then True else False
     where
         maxPoints = if ((player1Points game) > (player2Points game)) then (player1Points game) else (player2Points game)
 
--- Promena nivoa
+-- | Promena nivoa
 checkPoints :: PongoutGame -> PongoutGame
 checkPoints game = game { level = level', 
-                          Main.pause = pause', 
+                          pause = pause', 
                           bricksArray = bricksArray', 
                           nextLevel = nextLevel', 
                           gameEnd = gameEnd',
@@ -901,18 +843,17 @@ handleKeys (EventKey (Char 'd') Down _ _) game = game { player2Right = True }
 handleKeys (EventKey (Char 'a') Up _ _) game = game { player2Left = False }
 handleKeys (EventKey (Char 'd') Up _ _) game = game { player2Right = False }
 -- Pauziranje igre 'p'
-handleKeys (EventKey (Char 'p') Down _ _) game = if (start game && (not (gameEnd game))) then (game { Main.pause = not (Main.pause game), nextLevel = False }) else game
+handleKeys (EventKey (Char 'p') Down _ _) game = if (start game && (not (gameEnd game))) then (game { pause = not (pause game), nextLevel = False }) else game
 handleKeys (EventKey (Char 'p') Up _ _) game = game
-handleKeys (EventKey (Char 'P') Down _ _) game = if (start game && (not (gameEnd game))) then (game { Main.pause = not (Main.pause game), nextLevel = False }) else game
+handleKeys (EventKey (Char 'P') Down _ _) game = if (start game && (not (gameEnd game))) then (game { pause = not (pause game), nextLevel = False }) else game
 handleKeys (EventKey (Char 'P') Up _ _) game = game
 -- Pokretanje igre 'n'
-handleKeys (EventKey (Char 'n') Down _ _) game = if (Main.pause game) then (game { reset = True, start = True, Main.pause = False, nextLevel = False }) else game
+handleKeys (EventKey (Char 'n') Down _ _) game = if (pause game) then (game { reset = True, start = True, pause = False, nextLevel = False }) else game
 handleKeys (EventKey (Char 'n') Up _ _) game = game
-handleKeys (EventKey (Char 'N') Down _ _) game = if (Main.pause game) then (game { reset = True, start = True, Main.pause = False, nextLevel = False }) else game
+handleKeys (EventKey (Char 'N') Down _ _) game = if (pause game) then (game { reset = True, start = True, pause = False, nextLevel = False }) else game
 handleKeys (EventKey (Char 'N') Up _ _) game = game
 -- Default
 handleKeys _ game = game
-
 
 main :: IO ()
 main =  play window background fps initialState render handleKeys update
